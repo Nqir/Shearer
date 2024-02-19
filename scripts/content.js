@@ -1,10 +1,13 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'scrape') {
-        sendResponse({ data: scrapeClass() });
+    if (request.action === 'jsonifyClass') {
+        sendResponse({ data: jsonifyClass() });
+    }
+    if (request.action === 'jsonifyInterface') {
+        sendResponse({ data: jsonifyInterface() });
     }
     return true;
 });
-const scrapeClass = () => {
+const jsonifyClass = () => {
     const contentElement = document.querySelector('div.content');
     const sections = Array.from(contentElement.querySelectorAll('div.heading-wrapper[data-heading-level="h2"]'));
     let data = {
@@ -18,7 +21,7 @@ const scrapeClass = () => {
     sections.forEach(section => {
         const sectionTitle = section.querySelector('h2').textContent;
         if (sectionTitle?.includes('Properties')) {
-            data.classProperties = extractClassProperties(section);
+            data.classProperties = extractProperties(section);
         }
         if (sectionTitle?.includes('Methods')) {
             data.classMethods = extractMethods(section);
@@ -33,6 +36,24 @@ const scrapeClass = () => {
         }
         if (sectionTitle.includes('Constants')) {
             data.classConstants = extractConstants(section);
+        }
+    });
+    data.exampleCodes = extractExampleCodes();
+    return data;
+};
+const jsonifyInterface = () => {
+    const contentElement = document.querySelector('div.content');
+    const sections = Array.from(contentElement.querySelectorAll('div.heading-wrapper[data-heading-level="h2"]'));
+    let data = {
+        interfaceName: filterWords(contentElement.querySelector('h1').textContent, { wordsToFilter: ['Interface'] }),
+        interfaceDescription: contentElement.querySelector('p').textContent.trim(),
+        interfaceProperties: [],
+        exampleCodes: []
+    };
+    sections.forEach(section => {
+        const sectionTitle = section.querySelector('h2').textContent;
+        if (sectionTitle?.includes('Properties')) {
+            data.interfaceProperties = extractProperties(section);
         }
     });
     data.exampleCodes = extractExampleCodes();
@@ -53,7 +74,7 @@ const extractExtends = (startSection) => {
     }
     return extendsArray;
 };
-const extractClassProperties = (startSection) => {
+const extractProperties = (startSection) => {
     const properties = [];
     // Starts from the next element after the 'Properties' section
     let nextElement = startSection.nextElementSibling;

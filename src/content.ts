@@ -1,15 +1,20 @@
-chrome.runtime.onMessage.addListener((request: {action: string}, sender, sendResponse: (message: {data: ClassFormat}) => void) => {
-    if (request.action === 'scrape') {
-        sendResponse({data: scrapeClass()});
+chrome.runtime.onMessage.addListener((request: {action: string}, sender, sendResponse: (message: {data: FormatClass | FormatInterface}) => void) => {
+    if (request.action === 'jsonifyClass') {
+        sendResponse({data: jsonifyClass()});
     }
+
+    if (request.action === 'jsonifyInterface') {
+        sendResponse({data: jsonifyInterface()});
+    }
+
     return true;
 });
 
-const scrapeClass = (): ClassFormat => {
+const jsonifyClass = (): FormatClass => {
     const contentElement: HTMLDivElement = document.querySelector('div.content');
     const sections: Element[] = Array.from(contentElement.querySelectorAll('div.heading-wrapper[data-heading-level="h2"]'));
 
-    let data: ClassFormat = {
+    let data: FormatClass = {
         className: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Class']}),
         classDescription: contentElement.querySelector('p').textContent.trim(),
         classProperties: [],
@@ -22,7 +27,7 @@ const scrapeClass = (): ClassFormat => {
         const sectionTitle: string = section.querySelector('h2').textContent;
 
         if (sectionTitle?.includes('Properties')) {
-            data.classProperties = extractClassProperties(section);
+            data.classProperties = extractProperties(section);
         }
         
         if (sectionTitle?.includes('Methods')) {
@@ -49,6 +54,30 @@ const scrapeClass = (): ClassFormat => {
     return data;
 }
 
+const jsonifyInterface = (): FormatInterface => {
+    const contentElement: HTMLDivElement = document.querySelector('div.content');
+    const sections: Element[] = Array.from(contentElement.querySelectorAll('div.heading-wrapper[data-heading-level="h2"]'));
+
+    let data: FormatInterface = {
+        interfaceName: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Interface']}),
+        interfaceDescription: contentElement.querySelector('p').textContent.trim(),
+        interfaceProperties: [],
+        exampleCodes: []
+    };
+
+    sections.forEach(section => {
+        const sectionTitle: string = section.querySelector('h2').textContent;
+
+        if (sectionTitle?.includes('Properties')) {
+            data.interfaceProperties = extractProperties(section);
+        }
+    });
+
+    data.exampleCodes = extractExampleCodes();
+
+    return data;
+};
+
 const extractExtends = (startSection: Element): string[] => {
     const extendsArray: string[] = [];
 
@@ -69,8 +98,8 @@ const extractExtends = (startSection: Element): string[] => {
     return extendsArray;
 }
 
-const extractClassProperties = (startSection: Element) => {
-    const properties: ClassProperty[] = [];
+const extractProperties = (startSection: Element) => {
+    const properties: _Property[] = [];
 
     // Starts from the next element after the 'Properties' section
     let nextElement: Element = startSection.nextElementSibling;
@@ -105,8 +134,8 @@ const extractClassProperties = (startSection: Element) => {
     return properties;
 }
 
-const extractMethods = (startSection: Element): ClassMethod[] => {
-    const methods: ClassMethod[] = [];
+const extractMethods = (startSection: Element): _Function[] => {
+    const methods: _Function[] = [];
 
     // Starts from the next element after the 'Methods' section
     let nextElement: Element = startSection.nextElementSibling;
@@ -189,8 +218,8 @@ const extractMethods = (startSection: Element): ClassMethod[] => {
     return methods;
 }
 
-const extractConstants = (startSection: Element): Constant[] => {
-    const constants: Constant[] = [];
+const extractConstants = (startSection: Element): _Constant[] => {
+    const constants: _Constant[] = [];
 
     // Starts from the next element after the 'Constants' section
     let nextElement: Element = startSection.nextElementSibling;

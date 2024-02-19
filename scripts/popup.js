@@ -10,7 +10,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectionDropdown.selectedIndex === 0) {
             chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
                 tabs.forEach(tab => updateOutput(tab.title));
-                const res = await chrome.tabs.sendMessage(tabs[0].id, { action: 'scrape' });
+                const res = await chrome.tabs.sendMessage(tabs[0].id, { action: 'jsonifyClass' });
+                if (res && res.data) {
+                    updateOutput(JSON.stringify(res.data, null, 3));
+                }
+                else {
+                    updateOutput('No data found');
+                }
+            });
+            return;
+        }
+        if (selectionDropdown.selectedIndex === 2) {
+            chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+                tabs.forEach(tab => updateOutput(tab.title));
+                const res = await chrome.tabs.sendMessage(tabs[0].id, { action: 'scrapeInterface' });
                 if (res && res.data) {
                     updateOutput(JSON.stringify(res.data, null, 3));
                 }

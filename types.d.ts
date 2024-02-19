@@ -4,12 +4,12 @@ interface FilterOptions {
     caseSensitive?: boolean;
 }
 
-interface Constant {
+interface _Constant {
     name: string;
     description: string;
 }
   
-interface ClassProperty {
+interface _Property {
     name: string;
     description: string;
 }
@@ -19,23 +19,30 @@ interface Parameter {
     description?: string;
 }
 
-interface ClassMethod {
+interface _Function {
     name: string;
     description: string;
     parameters?: Parameter[];
     
 }
 
-interface ClassFormat {
+interface FormatClass {
     className: string;
     classDescription: string;
-    classProperties?: ClassProperty[];
-    classMethods?: ClassMethod[];
-    classConstants?: Constant[];
+    classProperties?: _Property[];
+    classMethods?: _Function[];
+    classConstants?: _Constant[];
     exampleCodes?: ExampleCode[]
 }
 
 interface ExampleCode {
     codeName: string;
     code: string;
+}
+
+interface FormatInterface {
+    interfaceName: string;
+    interfaceDescription: string;
+    interfaceProperties: _Property[];
+    exampleCodes?: ExampleCode[]
 }
