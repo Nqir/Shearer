@@ -1,0 +1,13 @@
+{
+  "name": "jsonify-minecraft_script_api",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [],
+  "author": "INqir",
+  "license": "ISC",
+  "devDependencies": {
+    "chrome-types": "^0.1.263"
+  },
+  "type": "module",
+  "main": "./scripts/popup.js"
+}
