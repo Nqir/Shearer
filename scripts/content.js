@@ -144,11 +144,23 @@ const extractConstants = (startSection) => {
     const constants = [];
     // Starts from the next element after the 'Constants' section
     let nextElement = startSection.nextElementSibling;
+    // Loop through all elements until the next section
     while (nextElement && !nextElement.matches('div.heading-wrapper[data-heading-level="h2"]')) {
+        // If the next element is a constant
         if (nextElement.matches('div.heading-wrapper[data-heading-level="h3"]')) {
+            let element = nextElement.nextElementSibling;
+            // Get constant name
             const constantName = nextElement.querySelector('h3').textContent;
-            const constantDescription = nextElement.nextElementSibling.textContent ?? 'No description found.';
-            constants.push({ name: constantName, description: constantDescription });
+            const constantDescription = [];
+            // Loop through all elements until the next section
+            while (element && !element.matches('div.heading-wrapper[data-heading-level="h3"]')) {
+                // Description
+                if (element.matches('p') && element.textContent) {
+                    constantDescription.push(element.textContent);
+                }
+                element = element?.nextElementSibling;
+            }
+            constants.push({ name: constantName, description: constantDescription.join('\n').toString() });
         }
         nextElement = nextElement?.nextElementSibling;
     }
@@ -170,12 +182,17 @@ const extractExampleCodes = () => {
                 if (nextElement.matches('pre')) {
                     code = cleanTextContent(nextElement.textContent) ?? "";
                 }
+                if (codeName && code) {
+                    const newExampleCode = { codeName, code };
+                    const isDuplicate = exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName && exampleCode.code === newExampleCode.code);
+                    if (!isDuplicate) {
+                        exampleCodes.push(newExampleCode);
+                    }
+                    // Reset
+                    codeName = "";
+                    code = "";
+                }
                 nextElement = nextElement.nextElementSibling;
-            }
-            const newExampleCode = { codeName, code };
-            const isDuplicate = exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName && exampleCode.code === newExampleCode.code);
-            if (!isDuplicate) {
-                exampleCodes.push(newExampleCode);
             }
         }
     });
