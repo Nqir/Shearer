@@ -13,7 +13,10 @@ function parseDoc(request: {action: string}, _sender: any, sendResponse: (messag
         parseClass = 'parseClass',
         parseInterface = 'parseInterface',
         parseObjects = 'parseObject',
-        parseConstants = 'parseConstant'
+        parseConstants = 'parseConstant',
+        parseProperties = 'parseProperty',
+        parseFunctions = 'parseFunction',
+        parseExamples = 'parseExample'
     }
 
     switch(request.action) {
@@ -30,12 +33,25 @@ function parseDoc(request: {action: string}, _sender: any, sendResponse: (messag
             sendResponse({ data: parseObjects() });
             break;
         case Action.parseConstants:
-            const sections = findAllElement<HTMLDivElement>(`div.content ${Heading.H2}`);
-
-            sections.forEach(section => {
-                const sectionTitle = section.querySelector('h2').textContent;
-                if (sectionTitle?.includes('Constants')) sendResponse({ data: parseConstants(section) });
+            findAndProcessSectionByTitle('Constants', (section: HTMLDivElement) => {
+                const constantsData = parseConstants(section);
+                sendResponse({ data: constantsData });
+            })
+            break;
+        case Action.parseProperties:
+            findAndProcessSectionByTitle('Properties', (section: HTMLDivElement) => {
+                const propertiesData = parseProperties(section);
+                sendResponse({ data: propertiesData });
             });
+            break;
+        case Action.parseFunctions:
+            findAndProcessSectionByTitle('Methods', (section: HTMLDivElement) => {
+                const functionsData = parseFunctions(section);
+                sendResponse({ data: functionsData });
+            });
+            break;
+        case Action.parseExamples:
+            sendResponse({ data: parseExamples() });
             break;
         default:
             sendResponse({ data: null });
@@ -134,16 +150,15 @@ function parseProperties(starterHeading: Element): _Property[] {
     const properties: _Property[] = [];
 
     // Start to the element after the 'Properties' heading
-    let nextElement = starterHeading.nextElementSibling;
+    let elements = iterateElementUntil(starterHeading, elem => elem.matches(Heading.H2));
 
-    while (nextElement && !nextElement.matches(Heading.H2)) {
+    elements.forEach(nextElement => {
         if (nextElement.matches(Heading.H3)) {
             const propertyName: string = nextElement.querySelector('h3')?.textContent ?? '';
             const propertyDescription: string[] = [];
 
-            let element = nextElement.nextElementSibling;
-
-            while (element && !element.matches(Heading.H3)) {
+            let propertyElements = iterateElementUntil(nextElement, elem => elem.matches(Heading.H3));
+            propertyElements.forEach(element => {
                 if (element.matches('p') && element.textContent) {
                     propertyDescription.push(element.textContent);
                 }
@@ -151,18 +166,14 @@ function parseProperties(starterHeading: Element): _Property[] {
                 if (element.matches('div.alert.is-warning')) {
                     propertyDescription.push(element.textContent);
                 }
-
-                element = element.nextElementSibling;
-            }
+            });
 
             properties.push({ 
                 name: propertyName, 
                 description: cleanTextContent(propertyDescription.join('\n')) 
             });
         }
-
-        nextElement = nextElement.nextElementSibling;
-    }
+    });
 
     return properties;
 };
@@ -171,12 +182,11 @@ function parseFunctions(starterHeading: Element): _Function[] {
     const _function: _Function[] = [];
 
     // Start to the element after the 'Methods' heading
-    let nextElement = starterHeading.nextElementSibling;
-
-    while (nextElement && !nextElement.matches(Heading.H2)) {
-        if (nextElement.matches(Heading.H3)) {
-            const functionName: string = nextElement.querySelector('h3')?.innerText ?? '';
-            const functionDetails = extractFunctionDetails(nextElement);
+    let elements = iterateElementUntil(starterHeading, elem => elem.matches(Heading.H2));
+    elements.forEach(element => {
+        if (element.matches(Heading.H3)) {
+            const functionName: string = element.querySelector('h3')?.innerText ?? '';
+            const functionDetails = extractFunctionDetails(element);
 
             _function.push({
                 name: functionName,
@@ -184,25 +194,21 @@ function parseFunctions(starterHeading: Element): _Function[] {
                 parameters: functionDetails.parameters,
             });
         }
-
-        nextElement = nextElement.nextElementSibling;
-    }
-
+    });
+        
     return _function;
 };
 
 function extractFunctionDetails(startElement: Element) {
-    let element = startElement.nextElementSibling;
+    let elements = iterateElementUntil(startElement, elem => elem.matches(Heading.H3));
 
     const description: string[] = [];
     const parameters: Parameter[] = [];
 
-    while(element && !element.matches(Heading.H3)) {
+    elements.forEach(element => {
         parseFunctionDescription(element, description);
         parseParameters(element, parameters);
-
-        element = element.nextElementSibling;
-    }
+    });
 
     return { description, parameters };
 }
@@ -277,32 +283,26 @@ function parseConstants(starterHeading: Element): _Constant[] {
     const constantArray: _Constant[] = [];
 
     // Start to the element after the 'Constants' heading
-    let nextElement: Element = starterHeading.nextElementSibling;
+    let elements = iterateElementUntil(starterHeading, elem => elem.matches(Heading.H2));
 
     // Loop through all elements until the next `h2`
-    while (nextElement && !nextElement.matches(Heading.H2)) {
+    elements.forEach(nextElement => {
         if (nextElement.matches(Heading.H3)) {
-            let element: Element = nextElement.nextElementSibling;
-
             const constantName: string =  nextElement.querySelector('h3').textContent;
             const constantDescription: string[] = [];
-
+            
             // Loop through all elements until the next `h3`
-            while (element && !element.matches(Heading.H3)) {
-
-                // Description
+            let constantElements = iterateElementUntil(nextElement, elem => elem.matches(Heading.H3));
+            constantElements.forEach(element => {
                 if (element.matches('p') && element.textContent) {
                     constantDescription.push(element.textContent);
                 }
-
-                element = element?.nextElementSibling;
-            }
+            });
 
             constantArray.push({ name: constantName, description: constantDescription.join('\n').toString() });
         }
-
-        nextElement = nextElement?.nextElementSibling;
-    }
+    });
+        
 
     return constantArray;
 };
@@ -314,28 +314,25 @@ function parseObjects(): _Object[] {
 
     sections.forEach(section => {
         if (section.querySelector('h2').textContent.includes('Objects')) {
-            let nextElement = section.nextElementSibling;
-            
-            while (nextElement && !nextElement.matches(Heading.H2)) {
+            let elements = iterateElementUntil(section, elem => elem.matches(Heading.H2));
+            elements.forEach(nextElement => {
                 if (nextElement.matches(Heading.H3)) {
                     let objectName: string = nextElement.querySelector('h3').textContent;
                     let objectDescription: string[] = [];
 
-                    let element: Element = nextElement.nextElementSibling;
-
-                    while (element && !element.matches(Heading.H3)) {
+                    let objectElements = iterateElementUntil(nextElement, elem => elem.matches(Heading.H3));
+                    objectElements.forEach(element => {
                         if (element.matches('p') && element.textContent) {
                             objectDescription.push(element.textContent);
                         }
+                    })
 
-                        element = element.nextElementSibling;
-                    }
-
-                    objects.push({ name: objectName, description: objectDescription.join('\n').toString() });
+                    objects.push({ 
+                        name: objectName, 
+                        description: objectDescription.join('\n').toString() 
+                    });
                 }
-
-                nextElement = nextElement.nextElementSibling;
-            }
+            });
         }
     });
     
@@ -351,9 +348,8 @@ function parseExamples(): Example[] {
         const heading = section.querySelector('h4');
 
         if (heading?.textContent?.includes('Examples')) {
-            let nextElement = section.nextElementSibling;
-            while (nextElement && !nextElement.matches(Heading.H4)) {
-
+            let elements = iterateElementUntil(section, elem => elem.matches(Heading.H4));
+            elements.forEach(nextElement => {
                 if (nextElement.matches(Heading.H5)) {
                     const codeName = nextElement.querySelector('h5')?.textContent ?? "";
 
@@ -365,16 +361,13 @@ function parseExamples(): Example[] {
                     if (codeName && codeElement && codeElement.matches('pre')) {
                         const code = cleanTextContent(codeElement.textContent) ?? "";
                         const newExampleCode = { codeName, code };
-                        const isDuplicate = exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName && exampleCode.code === newExampleCode.code);
 
-                        if (!isDuplicate) {
+                        if (!exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName && exampleCode.code === newExampleCode.code)) {
                             exampleCodes.push(newExampleCode);
                         }
                     }
                 }
-
-                nextElement = nextElement.nextElementSibling;
-            }
+            })
         }
     });
 
@@ -397,4 +390,29 @@ function findAllElement<T extends Element>(element: string): T[] {
 
 function findElement<T extends Element>(element: string): T {
     return document.querySelector(element) as T;
+}
+
+function iterateElementUntil(startElement: Element, condition: (elem: Element) => boolean): Element[] {
+    const elements: Element[] = [];
+
+    let nextElement = startElement.nextElementSibling;
+
+    while (nextElement && !condition(nextElement)) {
+        elements.push(nextElement);
+        nextElement = nextElement.nextElementSibling;
+    }
+
+    return elements;
+}
+
+function findAndProcessSectionByTitle(titleSection: string, action: (section: Element) => void): void {
+    
+    const sections = findAllElement<HTMLDivElement>(`div.content ${Heading.H2}`);
+
+    sections.forEach(section => {
+        const sectionTitle = section.querySelector('h2')?.textContent;
+        if (sectionTitle?.includes(titleSection)) {
+            action(section);
+        }
+    });
 }

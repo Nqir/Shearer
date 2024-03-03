@@ -1,4 +1,4 @@
-type JSONFormat = FormatEnum | FormatClass | FormatInterface | _Object[];
+type JSONFormat = FormatEnum | FormatClass | FormatInterface | _Object[] | Example[];
 type Action = 'parseEnum' | 'parseClass' | 'parseInterface' | 'parseObjects';
 
 interface NamedDescription {

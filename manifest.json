@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
-    "name": "JSONify Minecraft Script API",
-    "description": "Basic Extension",
+    "name": "Shearer",
+    "description": "Shearer is a browser extension that simplifies accessing Minecraft Script API documentation by converting it into an easily usable JSON format. With a simple interface, users can select, scrape, and copy data with just a click.",
     "version": "1.0",
     "permissions": [
       "activeTab",
@@ -9,7 +9,7 @@
     ],
     "action": {
       "default_popup": "./popup/index.html",
-      "default_icon": "icon.png"
+      "default_icon": "./images/icon.png"
     },
     "background": {
       "service_worker": "./scripts/service-worker.js"

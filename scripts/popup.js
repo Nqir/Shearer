@@ -15,7 +15,10 @@ async function handleScrape() {
         1: 'parseClass',
         2: 'parseInterface',
         3: 'parseObject',
-        4: 'parseConstant'
+        4: 'parseConstant',
+        5: 'parseProperty',
+        6: 'parseFunction',
+        7: 'parseExample'
     };
     const action = actionMap[selectedJSONFormat];
     if (!action) {
