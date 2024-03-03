@@ -1,34 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <link rel="stylesheet" href="style.css">
-        <link href="../bootstrap-5.3.2-dist/css/bootstrap.min.css" rel="stylesheet">
+      <link rel="stylesheet" href="style.css">
+        <title>Miner</title>
     </head>
     <body>
-      <main class="m-2">
+      <main>
+        <label for="floatingSelect">Select JSON format</label>
         <!-- format selection -->
-        <div class="form-floating">
-          <select class="form-select" id="floatingSelect" aria-label="Floating label select example">
+        <div class="container">
+          <select id="floatingSelect">
+            <option value="2">Enumeration</option>
             <option value="1">Class</option>
-            <option value="2" disabled>Enumeration</option>
             <option value="3">Interface</option>
+            <option value="4">Object</option>
+            <option value="5">Constant</option>
+            <option value="6" disabled>Type Alias</option>
           </select>
-          <label for="floatingSelect">Select JSON format</label>
         </div>
-        <div class="d-grid gap-2 my-2">
-          <!-- JSONIFY button -->
-          <button class="btn btn-primary fw-bold" type="button" id="scrapeButton">JSONIFY</button>
+        <!-- textarea -->
+        <div class="container">
+          <label for="floatingTextarea" id="jsonLabel">JSON OUTPUT: <span id="jsonLabel">...</span></label>
+          <textarea cols="60" placeholder="..." id="scrapeOutput" style="min-height: 200px; max-height: 450px;" disabled></textarea>
         </div>
-        <div class="form-floating my-3">
-          <!-- textarea -->
-          <textarea class="form-control" placeholder="..." id="scrapeOutput" style="min-height: 200px; max-height: 450px;" disabled></textarea>
-          <label for="floatingTextarea" id="jsonLabel">JSON <span id="jsonLabel"></span></label>
-        </div>
-        <div class="m-1">
-          <!-- copy button -->
-          <button id="copyButton" type="button" class="btn btn-success">Copy</button>
+        <!-- buttons -->
+        <div id="buttonsContainer" class="container">
+          <button type="button" id="scrapeButton" class="iconButton">
+            <img src="../images/minecraft-pickaxe.png" alt="minecraft pickaxe" title="scrape" width="25px" height="25px">
+          </button>
+          <button id="copyButton" type="button" class="iconButton" title="copy">
+            <img src="../images/clipboard.png" alt="copy" width="25px" height="25px">
+          </button>
         </div>
       </main>
-      <script type="module" src="../scripts/popup.js"></script>
+      <script src="../scripts/popup.js" type="module"></script>
     </body>
 </html>

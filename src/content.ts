@@ -1,241 +1,294 @@
-chrome.runtime.onMessage.addListener((request: {action: string}, sender, sendResponse: (message: {data: FormatClass | FormatInterface}) => void) => {
-    if (request.action === 'jsonifyClass') {
-        sendResponse({data: jsonifyClass()});
+chrome.runtime.onMessage.addListener(parseDoc);
+
+enum Heading {
+    H2 = 'div.heading-wrapper[data-heading-level="h2"]',
+    H3 = 'div.heading-wrapper[data-heading-level="h3"]',
+    H4 = 'div.heading-wrapper[data-heading-level="h4"]',
+    H5 = 'div.heading-wrapper[data-heading-level="h5"]',
+}
+
+function parseDoc(request: {action: string}, _sender: any, sendResponse: (message: {data: JSONFormat}) => void) {
+    enum Action {
+        parseEnum = 'parseEnum',
+        parseClass = 'parseClass',
+        parseInterface = 'parseInterface',
+        parseObjects = 'parseObject',
+        parseConstants = 'parseConstant'
     }
 
-    if (request.action === 'jsonifyInterface') {
-        sendResponse({data: jsonifyInterface()});
+    switch(request.action) {
+        case Action.parseEnum:
+            sendResponse({ data: parseEnum() });
+            break;
+        case Action.parseClass:
+            sendResponse({ data: parseClass() });
+            break;
+        case Action.parseInterface:
+            sendResponse({ data: parseInterface() });
+            break;
+        case Action.parseObjects:
+            sendResponse({ data: parseObjects() });
+            break;
+        case Action.parseConstants:
+            const sections = findAllElement<HTMLDivElement>(`div.content ${Heading.H2}`);
+
+            sections.forEach(section => {
+                const sectionTitle = section.querySelector('h2').textContent;
+                if (sectionTitle?.includes('Constants')) sendResponse({ data: parseConstants(section) });
+            });
+            break;
+        default:
+            sendResponse({ data: null });
+            break;
     }
 
     return true;
-});
+}
 
-const jsonifyClass = (): FormatClass => {
-    const contentElement: HTMLDivElement = document.querySelector('div.content');
-    const sections: Element[] = Array.from(contentElement.querySelectorAll('div.heading-wrapper[data-heading-level="h2"]'));
+function parseEnum(): FormatEnum {
+    const contentElement = document.querySelector('div.content') as HTMLDivElement;
+    const sections = Array.from(contentElement.querySelectorAll(Heading.H2));
 
-    let data: FormatClass = {
-        className: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Class']}),
-        classDescription: contentElement.querySelector('p').textContent.trim(),
-        classProperties: [],
-        classMethods: [],
-        classConstants: [],
-        exampleCodes: []
+    let data: FormatEnum = {
+        name: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Enum']}),
+        description: contentElement.querySelector('p').textContent.trim(),
+        constants: []
     };
 
     sections.forEach(section => {
         const sectionTitle: string = section.querySelector('h2').textContent;
-
-        if (sectionTitle?.includes('Properties')) {
-            data.classProperties = extractProperties(section);
-        }
-        
-        if (sectionTitle?.includes('Methods')) {
-            data.classMethods = extractMethods(section);
-        }
-
-        if (sectionTitle?.includes('Extends')) {
-            const extendsClasses: string = extractExtends(section).join(', ');
-            data.classDescription += ` Extends: ${extendsClasses}.`;
-        }
-
-        if (sectionTitle?.includes(`Classes that extend ${data.className}`)) {
-            const extendsClasses: string = extractExtends(section).join(', ');
-            data.classDescription += ` Classes that extend ${data.className}: ${extendsClasses}.`;
-        }
-
-        if (sectionTitle.includes('Constants')) {
-            data.classConstants = extractConstants(section);
-        }
+        if (sectionTitle?.includes('Constants')) data.constants = parseConstants(section);
     });
-
-    data.exampleCodes = extractExampleCodes();
 
     return data;
 }
 
-const jsonifyInterface = (): FormatInterface => {
-    const contentElement: HTMLDivElement = document.querySelector('div.content');
-    const sections: Element[] = Array.from(contentElement.querySelectorAll('div.heading-wrapper[data-heading-level="h2"]'));
+function parseClass(): FormatClass {
+    const content = findElement<HTMLDivElement>('div.content');
+    const sections = findAllElement<HTMLDivElement>(`div.content ${Heading.H2}`);
 
-    let data: FormatInterface = {
-        interfaceName: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Interface']}),
-        interfaceDescription: contentElement.querySelector('p').textContent.trim(),
-        interfaceProperties: [],
-        exampleCodes: []
+    let data: FormatClass = {
+        name: filterWords(content.querySelector('h1').textContent, {wordsToFilter: ['Class']}),
+        description: content.querySelector('p').textContent.trim(),
+        properties: [],
+        methods: [],
+        constants: [],
+        examples: parseExamples()
     };
+    
+    enum HeadingName {
+        Properties = 'Properties',
+        Methods = 'Methods',
+        Constants = 'Constants',
+    }
 
     sections.forEach(section => {
         const sectionTitle: string = section.querySelector('h2').textContent;
 
-        if (sectionTitle?.includes('Properties')) {
-            data.interfaceProperties = extractProperties(section);
+        if (sectionTitle?.includes('Extends') || 
+            sectionTitle?.includes(`Classes that extend ${data.name}`)
+        ) {
+            const extendsClasses: string = parseExtend(section).join(', ');
+            data.description += ` Extends: ${extendsClasses}.`;
+        } else {
+            switch (sectionTitle) {
+                case HeadingName.Properties:
+                    data.properties = parseProperties(section);
+                    break;
+                case HeadingName.Methods:
+                    data.methods = parseFunctions(section);
+                    break;
+                case HeadingName.Constants:
+                    data.constants = parseConstants(section);
+                    break;
+                default:
+                    break;
+            }
         }
     });
 
-    data.exampleCodes = extractExampleCodes();
-
     return data;
-};
+}
 
-const extractExtends = (startSection: Element): string[] => {
+function parseExtend(starterHeading: Element): string[] {
     const extendsArray: string[] = [];
 
-    // Starts from the next element after the 'Extends' section
-    let nextElement: Element = startSection.nextElementSibling;
+    // Start to the element after the 'Extends' heading
+    let element: Element = starterHeading.nextElementSibling;
 
-    while (nextElement && !nextElement.matches('div.heading-wrapper[data-heading-level="h2"]')) {
-        if (nextElement.matches('ul')) {
-            const extendsList = Array.from(nextElement.querySelectorAll('li'));
+    while (element && !element.matches(Heading.H2)) {
+        if (element.matches('ul')) {
+            const extendsList = Array.from(element.querySelectorAll('li'));
             extendsList.forEach((extend) => {
                 extendsArray.push(extend.textContent ?? 'No extends found.');
             });
         }
 
-        nextElement = nextElement?.nextElementSibling;
+        element = element.nextElementSibling;
     }
 
     return extendsArray;
 }
 
-const extractProperties = (startSection: Element) => {
+function parseProperties(starterHeading: Element): _Property[] {
     const properties: _Property[] = [];
 
-    // Starts from the next element after the 'Properties' section
-    let nextElement: Element = startSection.nextElementSibling;
+    // Start to the element after the 'Properties' heading
+    let nextElement = starterHeading.nextElementSibling;
 
-    while (nextElement && !nextElement.matches('div.heading-wrapper[data-heading-level="h2"]')) {
+    while (nextElement && !nextElement.matches(Heading.H2)) {
+        if (nextElement.matches(Heading.H3)) {
+            const propertyName: string = nextElement.querySelector('h3')?.textContent ?? '';
+            const propertyDescription: string[] = [];
 
-        if (nextElement.matches('div.heading-wrapper[data-heading-level="h3"]')) {
-            let propertyName: string =  nextElement.querySelector('h3').textContent;
-            let propertyDescription: string[] = [];
+            let element = nextElement.nextElementSibling;
 
-            let element: Element = nextElement?.nextElementSibling;
-
-            while (element && !element.matches('div.heading-wrapper[data-heading-level="h3"]')) {
-
+            while (element && !element.matches(Heading.H3)) {
                 if (element.matches('p') && element.textContent) {
                     propertyDescription.push(element.textContent);
                 }
 
-                if (element && element.matches('div.alert.is-warning')) {
+                if (element.matches('div.alert.is-warning')) {
                     propertyDescription.push(element.textContent);
                 }
 
-                element = element?.nextElementSibling;
+                element = element.nextElementSibling;
             }
-            
-            properties.push({ name: propertyName, description: cleanTextContent(propertyDescription.join('\n').toString()) });
+
+            properties.push({ 
+                name: propertyName, 
+                description: cleanTextContent(propertyDescription.join('\n')) 
+            });
         }
 
-        nextElement = nextElement?.nextElementSibling;
+        nextElement = nextElement.nextElementSibling;
     }
-    
+
     return properties;
+};
+
+function parseFunctions(starterHeading: Element): _Function[] {
+    const _function: _Function[] = [];
+
+    // Start to the element after the 'Methods' heading
+    let nextElement = starterHeading.nextElementSibling;
+
+    while (nextElement && !nextElement.matches(Heading.H2)) {
+        if (nextElement.matches(Heading.H3)) {
+            const functionName: string = nextElement.querySelector('h3')?.innerText ?? '';
+            const functionDetails = extractFunctionDetails(nextElement);
+
+            _function.push({
+                name: functionName,
+                description: cleanTextContent(functionDetails.description.join('\n')),
+                parameters: functionDetails.parameters,
+            });
+        }
+
+        nextElement = nextElement.nextElementSibling;
+    }
+
+    return _function;
+};
+
+function extractFunctionDetails(startElement: Element) {
+    let element = startElement.nextElementSibling;
+
+    const description: string[] = [];
+    const parameters: Parameter[] = [];
+
+    while(element && !element.matches(Heading.H3)) {
+        parseFunctionDescription(element, description);
+        parseParameters(element, parameters);
+
+        element = element.nextElementSibling;
+    }
+
+    return { description, parameters };
 }
 
-const extractMethods = (startSection: Element): _Function[] => {
-    const methods: _Function[] = [];
+function parseFunctionDescription(element: Element, functionDescription: string[]) {
+    // Description
+    if (element.matches('p') && element.textContent) {
+        functionDescription.push(element.textContent ?? '');
+    } else if (element.matches('ul') && element.previousElementSibling?.matches('p')) {
+        Array.from<HTMLLIElement>(element.querySelectorAll('li'))
+            .forEach(li => functionDescription.push(li.textContent ?? ''));
+    }
 
-    // Starts from the next element after the 'Methods' section
-    let nextElement: Element = startSection.nextElementSibling;
-    
-    while (nextElement && !nextElement.matches('div.heading-wrapper[data-heading-level="h2"]')) {
+    // Returns
+    if (element.matches(Heading.H4) && 
+        element.querySelector('h4')?.textContent?.includes('Returns')
+    ) {
+        functionDescription.push(element.textContent);
+    }
 
-        if (nextElement.matches('div.heading-wrapper[data-heading-level="h3"]')) {
-            const methodName: string =  nextElement.querySelector('h3').innerText;
-            const methodDescription: string[] = [];
-            const parameterArray: Parameter[] = [];
-            const alerts: string[] = ["is-primary", "is-warning"];
+    // Alerts
+    const alerts: string[] = ["is-primary", "is-warning"];
+    alerts.forEach((alert) => {
+        if (element.matches(`div.alert.${alert}`)) {
+            functionDescription.push(element.textContent);
+        }
+    });
+}
 
-            let element: Element = nextElement.nextElementSibling;
+function parseParameters(element: Element, parameters: Parameter[]) {
+    if (element.matches('ul') && 
+        element.previousElementSibling?.matches(Heading.H4)) {
+            const isParameterList = element.previousElementSibling.textContent?.includes('Parameters');
 
-            while (element && !element.matches('div.heading-wrapper[data-heading-level="h3"]')) {
-                // Description
-                if (element.matches('p') && element.textContent) {
-                    methodDescription.push(element.textContent);
-                }
+            if (isParameterList) {
+                Array.from(element.querySelectorAll('li')).forEach(li => {
+                    const paragraphs = li.querySelectorAll('p');
+                    const name = paragraphs.length > 0 ? paragraphs[0].textContent : '';
+                    const description = paragraphs.length > 1 ? paragraphs[1].textContent : 'No description.';
 
-                if (element.matches('ul') &&
-                    element.previousElementSibling.matches('p')) {
-                    const description: HTMLLIElement[] = Array.from(element.querySelectorAll('li'));
-
-                    description.forEach(description => {
-                        methodDescription.push(description.textContent);
-                    });
-                }
-
-                // Parameters
-                if (element.matches('ul') && 
-                    element.previousElementSibling?.matches('div.heading-wrapper[data-heading-level="h4"]') && 
-                    element.previousElementSibling?.querySelector('h4').textContent.includes('Parameters')) {
-                    
-                    let parameterList = Array.from(element.querySelectorAll('li'));
-
-                    parameterList.forEach(parameter => {
-                        let parameterElements: HTMLParagraphElement[] = Array.from(parameter.querySelectorAll('p'));
-
-                        // Has parameter description (two `p` elements after 'Parameter' `h2`)
-                        if (parameterElements.length === 2) {
-                            let parameterName: string = parameterElements[0]?.textContent ?? 'Parameter name not found.';
-                            let parameterDescription: string = parameterElements[1]?.textContent ?? 'Parameter description not found.';
-                            parameterArray.push({ name: parameterName, description: cleanTextContent(parameterDescription) });
-                            return;
-                        }
-
-                        parameterArray.push({ name: parameter.textContent, description: 'No description.'});
-                    });
-                }
-
-                // Returns
-                if (element && element.matches('div.heading-wrapper[data-heading-level="h4"]') && 
-                    element.querySelector('h4').textContent.includes('Returns')) {
-                    methodDescription.push(element.textContent);
-                }
-
-                // Alerts
-                alerts.forEach(alert => {
-                    if (element && element.matches(`div.alert.${alert}`)) {
-                        methodDescription.push(element.textContent);
+                    if (name) {
+                        parameters.push({ name, description });
                     }
                 });
-
-                element = element?.nextElementSibling;
             }
-            
-            methods.push(
-                { 
-                    name: methodName, 
-                    description: cleanTextContent(methodDescription.join('\n').toString()), 
-                    parameters: parameterArray 
-                }
-            );
-        }
-
-        nextElement = nextElement?.nextElementSibling;
     }
-
-    return methods;
 }
 
-const extractConstants = (startSection: Element): _Constant[] => {
-    const constants: _Constant[] = [];
+function parseInterface(): FormatInterface {
+    const contentElement: HTMLDivElement = document.querySelector('div.content');
+    const sections: Element[] = Array.from(contentElement.querySelectorAll(Heading.H2));
 
-    // Starts from the next element after the 'Constants' section
-    let nextElement: Element = startSection.nextElementSibling;
+    let data: FormatInterface = {
+        name: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Interface']}),
+        description: contentElement.querySelector('p').textContent.trim(),
+        properties: [],
+        example: parseExamples()
+    };
 
-    // Loop through all elements until the next section
-    while (nextElement && !nextElement.matches('div.heading-wrapper[data-heading-level="h2"]')) {
-        // If the next element is a constant
-        if (nextElement.matches('div.heading-wrapper[data-heading-level="h3"]')) {
+    sections.forEach(section => {
+        const sectionTitle: string = section.querySelector('h2').textContent;
+
+        if (sectionTitle?.includes('Properties')) {
+            data.properties = parseProperties(section);
+        }
+    });
+
+    return data;
+};
+
+function parseConstants(starterHeading: Element): _Constant[] {
+    const constantArray: _Constant[] = [];
+
+    // Start to the element after the 'Constants' heading
+    let nextElement: Element = starterHeading.nextElementSibling;
+
+    // Loop through all elements until the next `h2`
+    while (nextElement && !nextElement.matches(Heading.H2)) {
+        if (nextElement.matches(Heading.H3)) {
             let element: Element = nextElement.nextElementSibling;
 
-            // Get constant name
             const constantName: string =  nextElement.querySelector('h3').textContent;
             const constantDescription: string[] = [];
 
-            // Loop through all elements until the next section
-            while (element && !element.matches('div.heading-wrapper[data-heading-level="h3"]')) {
+            // Loop through all elements until the next `h3`
+            while (element && !element.matches(Heading.H3)) {
 
                 // Description
                 if (element.matches('p') && element.textContent) {
@@ -245,65 +298,103 @@ const extractConstants = (startSection: Element): _Constant[] => {
                 element = element?.nextElementSibling;
             }
 
-            constants.push({ name: constantName, description: constantDescription.join('\n').toString() });
+            constantArray.push({ name: constantName, description: constantDescription.join('\n').toString() });
         }
 
         nextElement = nextElement?.nextElementSibling;
     }
 
-    return constants;
+    return constantArray;
 };
 
-const extractExampleCodes = (): ExampleCode[] => {
-    const exampleCodes: ExampleCode[] = [];
-    const exampleSections = Array.from(document.querySelectorAll('div.content div.heading-wrapper[data-heading-level="h4"]'));
+function parseObjects(): _Object[] {
+    const contentElement: HTMLDivElement = document.querySelector('div.content');
+    const sections: Element[] = Array.from(contentElement.querySelectorAll(Heading.H2));
+    const objects: _Object[] = [];
 
-    exampleSections.forEach((section) => {
-        const heading = section.querySelector('h4');
-
-        if (heading && heading.textContent && heading.textContent.includes('Examples')) {
+    sections.forEach(section => {
+        if (section.querySelector('h2').textContent.includes('Objects')) {
             let nextElement = section.nextElementSibling;
+            
+            while (nextElement && !nextElement.matches(Heading.H2)) {
+                if (nextElement.matches(Heading.H3)) {
+                    let objectName: string = nextElement.querySelector('h3').textContent;
+                    let objectDescription: string[] = [];
 
-            let codeName: string = "";
-            let code: string = "";
+                    let element: Element = nextElement.nextElementSibling;
 
-            while (nextElement && !nextElement.matches('div.heading-wrapper[data-heading-level="h4"]')) {
-                if (nextElement.matches('div.heading-wrapper[data-heading-level="h5"]')) {
-                    codeName = nextElement.querySelector('h5')?.textContent ?? "";
-                }
+                    while (element && !element.matches(Heading.H3)) {
+                        if (element.matches('p') && element.textContent) {
+                            objectDescription.push(element.textContent);
+                        }
 
-                if (nextElement.matches('pre')) {
-                    code = cleanTextContent(nextElement.textContent) ?? "";
-                }
-
-                if (codeName && code) {
-                    const newExampleCode = { codeName, code };
-                    const isDuplicate = exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName && exampleCode.code === newExampleCode.code);
-
-                    if (!isDuplicate) {
-                        exampleCodes.push(newExampleCode);
+                        element = element.nextElementSibling;
                     }
 
-                    // Reset
-                    codeName = "";
-                    code = "";
+                    objects.push({ name: objectName, description: objectDescription.join('\n').toString() });
                 }
 
                 nextElement = nextElement.nextElementSibling;
             }
+        }
+    });
+    
+    return objects;
+}
 
+function parseExamples(): Example[] {
+    const content: HTMLDivElement = document.querySelector("div.content")
+    const exampleCodes: Example[] = [];
+    const exampleSections = Array.from(content.querySelectorAll(Heading.H4));
+
+    exampleSections.forEach((section) => {
+        const heading = section.querySelector('h4');
+
+        if (heading?.textContent?.includes('Examples')) {
+            let nextElement = section.nextElementSibling;
+            while (nextElement && !nextElement.matches(Heading.H4)) {
+
+                if (nextElement.matches(Heading.H5)) {
+                    const codeName = nextElement.querySelector('h5')?.textContent ?? "";
+
+                    let codeElement = nextElement.nextElementSibling;
+                    while(codeElement && !codeElement.matches('pre')) {
+                        codeElement = codeElement.nextElementSibling;
+                    }
+
+                    if (codeName && codeElement && codeElement.matches('pre')) {
+                        const code = cleanTextContent(codeElement.textContent) ?? "";
+                        const newExampleCode = { codeName, code };
+                        const isDuplicate = exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName && exampleCode.code === newExampleCode.code);
+
+                        if (!isDuplicate) {
+                            exampleCodes.push(newExampleCode);
+                        }
+                    }
+                }
+
+                nextElement = nextElement.nextElementSibling;
+            }
         }
     });
 
     return exampleCodes;
 }
 
-const filterWords = (text: string, options: FilterOptions): string => {
+function filterWords(text: string, options: FilterOptions): string {
     let filterRegex = new RegExp('\\b(' + options.wordsToFilter.join('|') + ')\\b', 'gi');
     return text.replace(filterRegex, '').trim(); 
 }
 
 // Removes extra `\n` from text content
-const cleanTextContent = (text: string): string => {
+function cleanTextContent(text: string): string {
     return text.replace(/\n\s*\n/g, '\n');
+}
+
+function findAllElement<T extends Element>(element: string): T[] {
+    return Array.from(document.querySelectorAll(element) as NodeListOf<T>);
+}
+
+function findElement<T extends Element>(element: string): T {
+    return document.querySelector(element) as T;
 }

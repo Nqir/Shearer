@@ -1,48 +1,46 @@
+type JSONFormat = FormatEnum | FormatClass | FormatInterface | _Object[];
+type Action = 'parseEnum' | 'parseClass' | 'parseInterface' | 'parseObjects';
 
-interface FilterOptions {
-    wordsToFilter: string[];
-    caseSensitive?: boolean;
-}
-
-interface _Constant {
-    name: string;
-    description: string;
-}
-  
-interface _Property {
+interface NamedDescription {
     name: string;
     description: string;
 }
 
-interface Parameter {
-    name: string;
-    description?: string;
-}
+interface _Property extends NamedDescription {}
 
-interface _Function {
-    name: string;
-    description: string;
+interface _Constant extends NamedDescription {}
+
+interface _Object extends NamedDescription{}
+
+interface Parameter extends NamedDescription{}
+
+interface _Function extends NamedDescription {
     parameters?: Parameter[];
-    
+}  
+
+
+interface FormatEnum extends NamedDescription{
+    constants: _Constant[];
 }
 
-interface FormatClass {
-    className: string;
-    classDescription: string;
-    classProperties?: _Property[];
-    classMethods?: _Function[];
-    classConstants?: _Constant[];
-    exampleCodes?: ExampleCode[]
+interface FormatClass extends NamedDescription {
+    properties?: _Property[];
+    methods?: _Function[];
+    constants?: _Constant[];
+    examples?: Example[]
 }
 
-interface ExampleCode {
+interface FormatInterface extends NamedDescription {
+    properties: _Property[];
+    example?: Example[]
+}
+
+interface Example {
     codeName: string;
     code: string;
 }
 
-interface FormatInterface {
-    interfaceName: string;
-    interfaceDescription: string;
-    interfaceProperties: _Property[];
-    exampleCodes?: ExampleCode[]
+interface FilterOptions {
+    wordsToFilter: string[];
+    caseSensitive?: boolean;
 }

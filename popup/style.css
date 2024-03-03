@@ -2,4 +2,41 @@ body {
     min-height: 300px;
     max-height: 500px;
     width: 500px;
+    font-weight: bold;
+}
+
+.iconButton {
+    border: none;
+    background-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background-color 0.3s ease;
+}
+
+#buttonsContainer {
+    display: flex;
+}
+
+#buttonsContainer button {
+    margin-left: 3px;
+    margin-right: 3px;
+}
+.container {
+    margin-top: 3px;
+    margin-bottom: 3px;
+    margin-left: 3px;
+    margin-right: 3px;
+}
+
+#scrapeOutput {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    resize: vertical;
+}
+
+.iconButton:hover {
+    background-color: rgba(0, 0, 0, 0.1);
 }

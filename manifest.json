@@ -20,12 +20,7 @@
         "js": ["./scripts/content.js"]
       }
     ],
-    "web_accessible_resources": [
-      {
-        "resources": ["bootstrap.bundle.min.js"],
-        "matches": ["<all_urls>"]
-      }
-    ],
+    "web_accessible_resources": [],
     "content_security_policy": {
       "extension-pages": "script-src 'self' https://cdn.jsdelivr.net/; object-src 'self'"
     }
