@@ -62,7 +62,7 @@ function parseEnum() {
     const contentElement = document.querySelector('div.content');
     const sections = Array.from(contentElement.querySelectorAll(Heading.H2));
     let data = {
-        name: filterWords(contentElement.querySelector('h1').textContent, { wordsToFilter: ['Enum'] }),
+        name: filterWords(contentElement.querySelector('h1').textContent, { wordsToFilter: ['Enumeration'] }),
         description: contentElement.querySelector('p').textContent.trim(),
         constants: []
     };
@@ -209,15 +209,20 @@ function parseFunctionDescription(element, functionDescription) {
 function parseParameters(element, parameters) {
     if (element.matches('ul') &&
         element.previousElementSibling?.matches(Heading.H4)) {
-        const isParameterList = element.previousElementSibling.textContent?.includes('Parameters');
+        const isParameterList = element.previousElementSibling.textContent.includes('Parameters');
         if (isParameterList) {
             Array.from(element.querySelectorAll('li')).forEach(li => {
                 const paragraphs = li.querySelectorAll('p');
-                const name = paragraphs.length > 0 ? paragraphs[0].textContent : '';
-                const description = paragraphs.length > 1 ? paragraphs[1].textContent : 'No description.';
-                if (name) {
-                    parameters.push({ name, description });
+                if (paragraphs.length > 1) {
+                    const parameterName = paragraphs[0].textContent;
+                    const parameterDescription = paragraphs[1]?.textContent ?? '';
+                    parameters.push({
+                        name: parameterName,
+                        description: parameterDescription
+                    });
+                    return;
                 }
+                parameters.push({ name: li.textContent, description: '' });
             });
         }
     }
@@ -229,7 +234,7 @@ function parseInterface() {
         name: filterWords(contentElement.querySelector('h1').textContent, { wordsToFilter: ['Interface'] }),
         description: contentElement.querySelector('p').textContent.trim(),
         properties: [],
-        example: parseExamples()
+        examples: parseExamples()
     };
     sections.forEach(section => {
         const sectionTitle = section.querySelector('h2').textContent;

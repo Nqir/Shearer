@@ -66,7 +66,7 @@ function parseEnum(): FormatEnum {
     const sections = Array.from(contentElement.querySelectorAll(Heading.H2));
 
     let data: FormatEnum = {
-        name: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Enum']}),
+        name: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Enumeration']}),
         description: contentElement.querySelector('p').textContent.trim(),
         constants: []
     };
@@ -241,17 +241,25 @@ function parseFunctionDescription(element: Element, functionDescription: string[
 function parseParameters(element: Element, parameters: Parameter[]) {
     if (element.matches('ul') && 
         element.previousElementSibling?.matches(Heading.H4)) {
-            const isParameterList = element.previousElementSibling.textContent?.includes('Parameters');
+            const isParameterList = element.previousElementSibling.textContent.includes('Parameters');
 
             if (isParameterList) {
                 Array.from(element.querySelectorAll('li')).forEach(li => {
                     const paragraphs = li.querySelectorAll('p');
-                    const name = paragraphs.length > 0 ? paragraphs[0].textContent : '';
-                    const description = paragraphs.length > 1 ? paragraphs[1].textContent : 'No description.';
+                    
+                    if (paragraphs.length > 1) {
+                        const parameterName = paragraphs[0].textContent;
+                        const parameterDescription = paragraphs[1]?.textContent ?? '';
 
-                    if (name) {
-                        parameters.push({ name, description });
+                        parameters.push({ 
+                            name: parameterName, 
+                            description: parameterDescription 
+                        });
+
+                        return;
                     }
+
+                    parameters.push({ name: li.textContent, description: '' })
                 });
             }
     }
@@ -265,7 +273,7 @@ function parseInterface(): FormatInterface {
         name: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Interface']}),
         description: contentElement.querySelector('p').textContent.trim(),
         properties: [],
-        example: parseExamples()
+        examples: parseExamples()
     };
 
     sections.forEach(section => {

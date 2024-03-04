@@ -32,7 +32,7 @@ interface FormatClass extends NamedDescription {
 
 interface FormatInterface extends NamedDescription {
     properties: _Property[];
-    example?: Example[]
+    examples?: Example[]
 }
 
 interface Example {
