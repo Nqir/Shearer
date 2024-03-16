@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Shearer",
-    "description": "Shearer is a browser extension that simplifies accessing Minecraft Script API documentation by converting it into an easily usable JSON format. With a simple interface, users can select, scrape, and copy data with just a click.",
+    "description": "Transform Minecraft Script API docs into JSON. Quick select, scrape, and copy with Shearer extension.",
     "version": "1.0",
     "permissions": [
       "activeTab",
