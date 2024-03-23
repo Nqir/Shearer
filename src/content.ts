@@ -61,13 +61,20 @@ function parseDoc(request: {action: string}, _sender: any, sendResponse: (messag
     return true;
 }
 
+function getContentElement(): HTMLDivElement {
+    return findElement<HTMLDivElement>('div.content');
+}
+
+function parseDocTitle(): string {
+    return getContentElement().querySelector('h1').textContent;
+}
+
 function parseEnum(): FormatEnum {
-    const contentElement = document.querySelector('div.content') as HTMLDivElement;
-    const sections = Array.from(contentElement.querySelectorAll(Heading.H2));
+    const sections = Array.from(getContentElement().querySelectorAll(Heading.H2));
 
     let data: FormatEnum = {
-        name: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Enumeration']}),
-        description: contentElement.querySelector('p').textContent.trim(),
+        name: filterWords(parseDocTitle(), {wordsToFilter: ['Enumeration']}),
+        description: getContentElement().querySelector('p').textContent.trim(),
         constants: []
     };
 
@@ -80,12 +87,11 @@ function parseEnum(): FormatEnum {
 }
 
 function parseClass(): FormatClass {
-    const content = findElement<HTMLDivElement>('div.content');
     const sections = findAllElement<HTMLDivElement>(`div.content ${Heading.H2}`);
 
     let data: FormatClass = {
-        name: filterWords(content.querySelector('h1').textContent, {wordsToFilter: ['Class']}),
-        description: content.querySelector('p').textContent.trim(),
+        name: filterWords(parseDocTitle(), {wordsToFilter: ['Class']}),
+        description: getContentElement().querySelector('p').textContent.trim(),
         properties: [],
         methods: [],
         constants: [],
@@ -266,12 +272,11 @@ function parseParameters(element: Element, parameters: Parameter[]) {
 }
 
 function parseInterface(): FormatInterface {
-    const contentElement: HTMLDivElement = document.querySelector('div.content');
-    const sections: Element[] = Array.from(contentElement.querySelectorAll(Heading.H2));
+    const sections: Element[] = Array.from(getContentElement().querySelectorAll(Heading.H2));
 
     let data: FormatInterface = {
-        name: filterWords(contentElement.querySelector('h1').textContent, {wordsToFilter: ['Interface']}),
-        description: contentElement.querySelector('p').textContent.trim(),
+        name: filterWords(getContentElement().querySelector('h1').textContent, {wordsToFilter: ['Interface']}),
+        description: getContentElement().querySelector('p').textContent.trim(),
         properties: [],
         examples: parseExamples()
     };
@@ -316,8 +321,7 @@ function parseConstants(starterHeading: Element): _Constant[] {
 };
 
 function parseObjects(): _Object[] {
-    const contentElement: HTMLDivElement = document.querySelector('div.content');
-    const sections: Element[] = Array.from(contentElement.querySelectorAll(Heading.H2));
+    const sections: Element[] = Array.from(getContentElement().querySelectorAll(Heading.H2));
     const objects: _Object[] = [];
 
     sections.forEach(section => {
@@ -348,9 +352,8 @@ function parseObjects(): _Object[] {
 }
 
 function parseExamples(): Example[] {
-    const content: HTMLDivElement = document.querySelector("div.content")
     const exampleCodes: Example[] = [];
-    const exampleSections = Array.from(content.querySelectorAll(Heading.H4));
+    const exampleSections = Array.from(getContentElement().querySelectorAll(Heading.H4));
 
     exampleSections.forEach((section) => {
         const heading = section.querySelector('h4');
@@ -370,8 +373,9 @@ function parseExamples(): Example[] {
                         const code = cleanTextContent(codeElement.textContent) ?? "";
                         const newExampleCode = { codeName, code };
 
-                        if (!exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName && exampleCode.code === newExampleCode.code)) {
-                            exampleCodes.push(newExampleCode);
+                        if (!exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName && 
+                            exampleCode.code === newExampleCode.code)) {
+                                exampleCodes.push(newExampleCode);
                         }
                     }
                 }
@@ -385,19 +389,6 @@ function parseExamples(): Example[] {
 function filterWords(text: string, options: FilterOptions): string {
     let filterRegex = new RegExp('\\b(' + options.wordsToFilter.join('|') + ')\\b', 'gi');
     return text.replace(filterRegex, '').trim(); 
-}
-
-// Removes extra `\n` from text content
-function cleanTextContent(text: string): string {
-    return text.replace(/\n\s*\n/g, '\n');
-}
-
-function findAllElement<T extends Element>(element: string): T[] {
-    return Array.from(document.querySelectorAll(element) as NodeListOf<T>);
-}
-
-function findElement<T extends Element>(element: string): T {
-    return document.querySelector(element) as T;
 }
 
 function iterateElementUntil(startElement: Element, condition: (elem: Element) => boolean): Element[] {
@@ -414,7 +405,6 @@ function iterateElementUntil(startElement: Element, condition: (elem: Element) =
 }
 
 function findAndProcessSectionByTitle(titleSection: string, action: (section: Element) => void): void {
-    
     const sections = findAllElement<HTMLDivElement>(`div.content ${Heading.H2}`);
 
     sections.forEach(section => {
@@ -423,4 +413,19 @@ function findAndProcessSectionByTitle(titleSection: string, action: (section: El
             action(section);
         }
     });
+}
+
+/**
+ * Removes extra `\n` from text content
+ */
+function cleanTextContent(text: string): string {
+    return text.replace(/\n\s*\n/g, '\n');
+}
+
+function findAllElement<T extends Element>(element: string): T[] {
+    return Array.from(document.querySelectorAll(element) as NodeListOf<T>);
+}
+
+function findElement<T extends Element>(element: string): T {
+    return document.querySelector(element) as T;
 }

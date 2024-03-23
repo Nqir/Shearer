@@ -58,12 +58,17 @@ function parseDoc(request, _sender, sendResponse) {
     }
     return true;
 }
+function getContentElement() {
+    return findElement('div.content');
+}
+function parseDocTitle() {
+    return getContentElement().querySelector('h1').textContent;
+}
 function parseEnum() {
-    const contentElement = document.querySelector('div.content');
-    const sections = Array.from(contentElement.querySelectorAll(Heading.H2));
+    const sections = Array.from(getContentElement().querySelectorAll(Heading.H2));
     let data = {
-        name: filterWords(contentElement.querySelector('h1').textContent, { wordsToFilter: ['Enumeration'] }),
-        description: contentElement.querySelector('p').textContent.trim(),
+        name: filterWords(parseDocTitle(), { wordsToFilter: ['Enumeration'] }),
+        description: getContentElement().querySelector('p').textContent.trim(),
         constants: []
     };
     sections.forEach(section => {
@@ -74,11 +79,10 @@ function parseEnum() {
     return data;
 }
 function parseClass() {
-    const content = findElement('div.content');
     const sections = findAllElement(`div.content ${Heading.H2}`);
     let data = {
-        name: filterWords(content.querySelector('h1').textContent, { wordsToFilter: ['Class'] }),
-        description: content.querySelector('p').textContent.trim(),
+        name: filterWords(parseDocTitle(), { wordsToFilter: ['Class'] }),
+        description: getContentElement().querySelector('p').textContent.trim(),
         properties: [],
         methods: [],
         constants: [],
@@ -228,11 +232,10 @@ function parseParameters(element, parameters) {
     }
 }
 function parseInterface() {
-    const contentElement = document.querySelector('div.content');
-    const sections = Array.from(contentElement.querySelectorAll(Heading.H2));
+    const sections = Array.from(getContentElement().querySelectorAll(Heading.H2));
     let data = {
-        name: filterWords(contentElement.querySelector('h1').textContent, { wordsToFilter: ['Interface'] }),
-        description: contentElement.querySelector('p').textContent.trim(),
+        name: filterWords(getContentElement().querySelector('h1').textContent, { wordsToFilter: ['Interface'] }),
+        description: getContentElement().querySelector('p').textContent.trim(),
         properties: [],
         examples: parseExamples()
     };
@@ -268,8 +271,7 @@ function parseConstants(starterHeading) {
 }
 ;
 function parseObjects() {
-    const contentElement = document.querySelector('div.content');
-    const sections = Array.from(contentElement.querySelectorAll(Heading.H2));
+    const sections = Array.from(getContentElement().querySelectorAll(Heading.H2));
     const objects = [];
     sections.forEach(section => {
         if (section.querySelector('h2').textContent.includes('Objects')) {
@@ -295,9 +297,8 @@ function parseObjects() {
     return objects;
 }
 function parseExamples() {
-    const content = document.querySelector("div.content");
     const exampleCodes = [];
-    const exampleSections = Array.from(content.querySelectorAll(Heading.H4));
+    const exampleSections = Array.from(getContentElement().querySelectorAll(Heading.H4));
     exampleSections.forEach((section) => {
         const heading = section.querySelector('h4');
         if (heading?.textContent?.includes('Examples')) {
@@ -312,7 +313,8 @@ function parseExamples() {
                     if (codeName && codeElement && codeElement.matches('pre')) {
                         const code = cleanTextContent(codeElement.textContent) ?? "";
                         const newExampleCode = { codeName, code };
-                        if (!exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName && exampleCode.code === newExampleCode.code)) {
+                        if (!exampleCodes.some(exampleCode => exampleCode.codeName === newExampleCode.codeName &&
+                            exampleCode.code === newExampleCode.code)) {
                             exampleCodes.push(newExampleCode);
                         }
                     }
@@ -325,16 +327,6 @@ function parseExamples() {
 function filterWords(text, options) {
     let filterRegex = new RegExp('\\b(' + options.wordsToFilter.join('|') + ')\\b', 'gi');
     return text.replace(filterRegex, '').trim();
-}
-// Removes extra `\n` from text content
-function cleanTextContent(text) {
-    return text.replace(/\n\s*\n/g, '\n');
-}
-function findAllElement(element) {
-    return Array.from(document.querySelectorAll(element));
-}
-function findElement(element) {
-    return document.querySelector(element);
 }
 function iterateElementUntil(startElement, condition) {
     const elements = [];
@@ -353,4 +345,16 @@ function findAndProcessSectionByTitle(titleSection, action) {
             action(section);
         }
     });
+}
+/**
+ * Removes extra `\n` from text content
+ */
+function cleanTextContent(text) {
+    return text.replace(/\n\s*\n/g, '\n');
+}
+function findAllElement(element) {
+    return Array.from(document.querySelectorAll(element));
+}
+function findElement(element) {
+    return document.querySelector(element);
 }
