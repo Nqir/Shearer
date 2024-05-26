@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', () => {
     const selectionDropdown = getElementById<HTMLSelectElement>('floatingSelect');
     const scrapeButton = getElementById<HTMLButtonElement>('scrapeButton');
@@ -45,6 +44,7 @@ async function handleScrape() {
 
         if (res && res.data) {
             updateOutput(JSON.stringify(res.data, null, 3));
+            displayAdditionalDetails(res.data);
             toggleButtonIcon(getElementById('scrapeButton'), "check.png", "scrape");
             return;
         } else {
@@ -85,7 +85,7 @@ function toggleButtonIcon(button: HTMLButtonElement, src: string, alt: string) {
 function setJSONFormat(newLabel: string) {
     const label = getElementById<HTMLLabelElement>('jsonLabel');
     label.textContent = `JSON Output: ${newLabel}`;
-    updateOutput(''); // clear output
+    updateOutput('');
 };
 
 function updateJSONFormat() {
@@ -98,6 +98,19 @@ function updateOutput(output: string) {
     const outputTextArea = getElementById<HTMLTextAreaElement>('scrapeOutput');
     outputTextArea.value = output;
 };
+
+function displayAdditionalDetails(data: JSONFormat) {
+    const detailsOutput = getElementById<HTMLDivElement>('additionalDetails');
+    const details = [];
+
+    for (const key in data) {
+        if (Array.isArray(data[key])) {
+            details.push(`${key}: ${data[key].length}`);
+        }
+    }
+
+    detailsOutput.innerHTML = details.length ? details.join('<br>') : 'No details available.';
+}
 
 function getElementById<T extends HTMLElement>(id: string): T {
     return document.getElementById(id) as T;

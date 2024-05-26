@@ -73,7 +73,7 @@ function parseEnum(): FormatEnum {
     const sections = Array.from(getContentElement().querySelectorAll(Heading.H2));
 
     let data: FormatEnum = {
-        name: filterWords(parseDocTitle(), {wordsToFilter: ['Enumeration']}),
+        name: parseDocTitle(),
         description: getContentElement().querySelector('p').textContent.trim(),
         constants: []
     };
@@ -90,7 +90,7 @@ function parseClass(): FormatClass {
     const sections = findAllElement<HTMLDivElement>(`div.content ${Heading.H2}`);
 
     let data: FormatClass = {
-        name: filterWords(parseDocTitle(), {wordsToFilter: ['Class']}),
+        name: parseDocTitle(),
         description: getContentElement().querySelector('p').textContent.trim(),
         properties: [],
         methods: [],
@@ -275,7 +275,7 @@ function parseInterface(): FormatInterface {
     const sections: Element[] = Array.from(getContentElement().querySelectorAll(Heading.H2));
 
     let data: FormatInterface = {
-        name: filterWords(getContentElement().querySelector('h1').textContent, {wordsToFilter: ['Interface']}),
+        name: parseDocTitle(),
         description: getContentElement().querySelector('p').textContent.trim(),
         properties: [],
         examples: parseExamples()
@@ -386,6 +386,8 @@ function parseExamples(): Example[] {
     return exampleCodes;
 }
 
+// Utility functions
+
 function filterWords(text: string, options: FilterOptions): string {
     let filterRegex = new RegExp('\\b(' + options.wordsToFilter.join('|') + ')\\b', 'gi');
     return text.replace(filterRegex, '').trim(); 
@@ -415,9 +417,6 @@ function findAndProcessSectionByTitle(titleSection: string, action: (section: El
     });
 }
 
-/**
- * Removes extra `\n` from text content
- */
 function cleanTextContent(text: string): string {
     return text.replace(/\n\s*\n/g, '\n');
 }

@@ -35,6 +35,7 @@ async function handleScrape() {
         const res = await chrome.tabs.sendMessage(tab.id, { action });
         if (res && res.data) {
             updateOutput(JSON.stringify(res.data, null, 3));
+            displayAdditionalDetails(res.data);
             toggleButtonIcon(getElementById('scrapeButton'), "check.png", "scrape");
             return;
         }
@@ -72,7 +73,7 @@ function toggleButtonIcon(button, src, alt) {
 function setJSONFormat(newLabel) {
     const label = getElementById('jsonLabel');
     label.textContent = `JSON Output: ${newLabel}`;
-    updateOutput(''); // clear output
+    updateOutput('');
 }
 ;
 function updateJSONFormat() {
@@ -86,6 +87,16 @@ function updateOutput(output) {
     outputTextArea.value = output;
 }
 ;
+function displayAdditionalDetails(data) {
+    const detailsOutput = getElementById('additionalDetails');
+    const details = [];
+    for (const key in data) {
+        if (Array.isArray(data[key])) {
+            details.push(`${key}: ${data[key].length}`);
+        }
+    }
+    detailsOutput.innerHTML = details.length ? details.join('<br>') : 'No details available.';
+}
 function getElementById(id) {
     return document.getElementById(id);
 }

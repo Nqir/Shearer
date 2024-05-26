@@ -40,3 +40,8 @@ body {
 .iconButton:hover {
     background-color: rgba(0, 0, 0, 0.1);
 }
+
+.additionalDetails {
+    min-height: 50px; 
+    max-height: 150px;
+}

@@ -67,7 +67,7 @@ function parseDocTitle() {
 function parseEnum() {
     const sections = Array.from(getContentElement().querySelectorAll(Heading.H2));
     let data = {
-        name: filterWords(parseDocTitle(), { wordsToFilter: ['Enumeration'] }),
+        name: parseDocTitle(),
         description: getContentElement().querySelector('p').textContent.trim(),
         constants: []
     };
@@ -81,7 +81,7 @@ function parseEnum() {
 function parseClass() {
     const sections = findAllElement(`div.content ${Heading.H2}`);
     let data = {
-        name: filterWords(parseDocTitle(), { wordsToFilter: ['Class'] }),
+        name: parseDocTitle(),
         description: getContentElement().querySelector('p').textContent.trim(),
         properties: [],
         methods: [],
@@ -234,7 +234,7 @@ function parseParameters(element, parameters) {
 function parseInterface() {
     const sections = Array.from(getContentElement().querySelectorAll(Heading.H2));
     let data = {
-        name: filterWords(getContentElement().querySelector('h1').textContent, { wordsToFilter: ['Interface'] }),
+        name: parseDocTitle(),
         description: getContentElement().querySelector('p').textContent.trim(),
         properties: [],
         examples: parseExamples()
@@ -324,6 +324,7 @@ function parseExamples() {
     });
     return exampleCodes;
 }
+// Utility functions
 function filterWords(text, options) {
     let filterRegex = new RegExp('\\b(' + options.wordsToFilter.join('|') + ')\\b', 'gi');
     return text.replace(filterRegex, '').trim();
@@ -346,9 +347,6 @@ function findAndProcessSectionByTitle(titleSection, action) {
         }
     });
 }
-/**
- * Removes extra `\n` from text content
- */
 function cleanTextContent(text) {
     return text.replace(/\n\s*\n/g, '\n');
 }
