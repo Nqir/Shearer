@@ -91,7 +91,7 @@ function parseClass(): FormatClass {
 
     let data: FormatClass = {
         name: parseDocTitle(),
-        description: getContentElement().querySelector('p').textContent.trim(),
+        description: parseClassDescription(),
         properties: [],
         methods: [],
         constants: [],
@@ -130,6 +130,21 @@ function parseClass(): FormatClass {
     });
 
     return data;
+}
+
+function parseClassDescription(): string {
+    const cautions: NodeListOf<HTMLDivElement> = getContentElement().querySelectorAll('div.alert.is-danger');
+    const visibleCautions = Array.from(cautions).filter(div => div.offsetWidth > 0 && div.offsetHeight > 0);
+
+    if (visibleCautions.length === 0) {
+        return getContentElement().querySelector('p').textContent;
+    }
+
+    const caution = visibleCautions[0];
+    const p = caution?.nextElementSibling?.textContent ?? '';
+    const description = caution?.textContent.trim() + p;
+
+    return description;
 }
 
 function parseExtend(starterHeading: Element): string[] {
@@ -316,7 +331,6 @@ function parseConstants(starterHeading: Element): _Constant[] {
         }
     });
         
-
     return constantArray;
 };
 

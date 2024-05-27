@@ -82,7 +82,7 @@ function parseClass() {
     const sections = findAllElement(`div.content ${Heading.H2}`);
     let data = {
         name: parseDocTitle(),
-        description: getContentElement().querySelector('p').textContent.trim(),
+        description: parseClassDescription(),
         properties: [],
         methods: [],
         constants: [],
@@ -118,6 +118,17 @@ function parseClass() {
         }
     });
     return data;
+}
+function parseClassDescription() {
+    const cautions = getContentElement().querySelectorAll('div.alert.is-danger');
+    const visibleCautions = Array.from(cautions).filter(div => div.offsetWidth > 0 && div.offsetHeight > 0);
+    if (visibleCautions.length === 0) {
+        return getContentElement().querySelector('p').textContent;
+    }
+    const caution = visibleCautions[0];
+    const p = caution?.nextElementSibling?.textContent ?? '';
+    const description = caution?.textContent.trim() + p;
+    return description;
 }
 function parseExtend(starterHeading) {
     const extendsArray = [];
