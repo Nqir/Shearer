@@ -6,6 +6,12 @@ var Heading;
     Heading["H4"] = "div.heading-wrapper[data-heading-level=\"h4\"]";
     Heading["H5"] = "div.heading-wrapper[data-heading-level=\"h5\"]";
 })(Heading || (Heading = {}));
+function getContentElement() {
+    return findElement('div.content');
+}
+function parseDocTitle() {
+    return getContentElement().querySelector('h1').textContent;
+}
 function parseDoc(request, _sender, sendResponse) {
     let Action;
     (function (Action) {
@@ -33,20 +39,17 @@ function parseDoc(request, _sender, sendResponse) {
             break;
         case Action.parseConstants:
             findAndProcessSectionByTitle('Constants', (section) => {
-                const constantsData = parseConstants(section);
-                sendResponse({ data: constantsData });
+                sendResponse({ data: parseConstants(section) });
             });
             break;
         case Action.parseProperties:
             findAndProcessSectionByTitle('Properties', (section) => {
-                const propertiesData = parseProperties(section);
-                sendResponse({ data: propertiesData });
+                sendResponse({ data: parseProperties(section) });
             });
             break;
         case Action.parseFunctions:
             findAndProcessSectionByTitle('Methods', (section) => {
-                const functionsData = parseFunctions(section);
-                sendResponse({ data: functionsData });
+                sendResponse({ data: parseFunctions(section) });
             });
             break;
         case Action.parseExamples:
@@ -57,12 +60,6 @@ function parseDoc(request, _sender, sendResponse) {
             break;
     }
     return true;
-}
-function getContentElement() {
-    return findElement('div.content');
-}
-function parseDocTitle() {
-    return getContentElement().querySelector('h1').textContent;
 }
 function parseEnum() {
     const sections = Array.from(getContentElement().querySelectorAll(Heading.H2));
@@ -79,56 +76,64 @@ function parseEnum() {
     return data;
 }
 function parseClass() {
-    const sections = findAllElement(`div.content ${Heading.H2}`);
-    let data = {
-        name: parseDocTitle(),
-        description: parseClassDescription(),
-        properties: [],
-        methods: [],
-        constants: [],
-        examples: parseExamples()
-    };
-    let HeadingName;
-    (function (HeadingName) {
-        HeadingName["Properties"] = "Properties";
-        HeadingName["Methods"] = "Methods";
-        HeadingName["Constants"] = "Constants";
-    })(HeadingName || (HeadingName = {}));
-    sections.forEach(section => {
-        const sectionTitle = section.querySelector('h2').textContent;
-        if (sectionTitle?.includes('Extends') ||
-            sectionTitle?.includes(`Classes that extend ${data.name}`)) {
-            const extendsClasses = parseExtend(section).join(', ');
-            data.description += ` Extends: ${extendsClasses}.`;
-        }
-        else {
-            switch (sectionTitle) {
-                case HeadingName.Properties:
-                    data.properties = parseProperties(section);
-                    break;
-                case HeadingName.Methods:
-                    data.methods = parseFunctions(section);
-                    break;
-                case HeadingName.Constants:
-                    data.constants = parseConstants(section);
-                    break;
-                default:
-                    break;
+    try {
+        const sections = findAllElement(`div.content ${Heading.H2}`);
+        let data = {
+            name: parseDocTitle(),
+            description: parseClassDescription(),
+            properties: [],
+            methods: [],
+            constants: [],
+            examples: parseExamples()
+        };
+        let HeadingName;
+        (function (HeadingName) {
+            HeadingName["Properties"] = "Properties";
+            HeadingName["Methods"] = "Methods";
+            HeadingName["Constants"] = "Constants";
+        })(HeadingName || (HeadingName = {}));
+        sections.forEach(section => {
+            const sectionTitle = section.querySelector('h2').textContent;
+            if (sectionTitle?.includes('Extends') ||
+                sectionTitle?.includes(`Classes that extend ${data.name}`)) {
+                const extendsClasses = parseExtend(section).join(', ');
+                data.description += ` Extends: ${extendsClasses}.`;
             }
-        }
-    });
-    return data;
+            else {
+                switch (sectionTitle) {
+                    case HeadingName.Properties:
+                        data.properties = parseProperties(section);
+                        break;
+                    case HeadingName.Methods:
+                        data.methods = parseFunctions(section);
+                        break;
+                    case HeadingName.Constants:
+                        data.constants = parseConstants(section);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        });
+        return data;
+    }
+    catch (error) {
+        console.error('Error during scrape', error);
+        throw error;
+    }
 }
 function parseClassDescription() {
     const cautions = getContentElement().querySelectorAll('div.alert.is-danger');
     const visibleCautions = Array.from(cautions).filter(div => div.offsetWidth > 0 && div.offsetHeight > 0);
-    if (visibleCautions.length === 0) {
+    const caution = visibleCautions[0];
+    if (caution && caution.nextElementSibling?.matches('p')) {
+        const p = caution?.nextElementSibling?.textContent ?? '';
+        const description = caution?.textContent.trim() + p;
+        return description;
+    }
+    else {
         return getContentElement().querySelector('p').textContent;
     }
-    const caution = visibleCautions[0];
-    const p = caution?.nextElementSibling?.textContent ?? '';
-    const description = caution?.textContent.trim() + p;
-    return description;
 }
 function parseExtend(starterHeading) {
     const extendsArray = [];
@@ -173,17 +178,26 @@ function parseProperties(starterHeading) {
 ;
 function parseFunctions(starterHeading) {
     const _function = [];
+    const addNewFunction = (element) => {
+        const functionName = element.querySelector('h3')?.innerText ?? '';
+        const functionDetails = extractFunctionDetails(element);
+        _function.push({
+            name: functionName,
+            description: cleanTextContent(functionDetails.description.join('\n')),
+            parameters: functionDetails.parameters,
+        });
+        return;
+    };
     // Start to the element after the 'Methods' heading
     let elements = iterateElementUntil(starterHeading, elem => elem.matches(Heading.H2));
     elements.forEach(element => {
-        if (element.matches(Heading.H3)) {
-            const functionName = element.querySelector('h3')?.innerText ?? '';
-            const functionDetails = extractFunctionDetails(element);
-            _function.push({
-                name: functionName,
-                description: cleanTextContent(functionDetails.description.join('\n')),
-                parameters: functionDetails.parameters,
-            });
+        const isStable = element.matches(Heading.H3);
+        const isExperimental = element.matches('div[data-moniker="minecraft-bedrock-experimental"]') && element.querySelector(Heading.H3);
+        if (isStable) {
+            addNewFunction(element);
+        }
+        if (isExperimental) {
+            addNewFunction(element.querySelector(Heading.H3));
         }
     });
     return _function;
@@ -214,7 +228,7 @@ function parseFunctionDescription(element, functionDescription) {
         functionDescription.push(element.textContent);
     }
     // Alerts
-    const alerts = ["is-primary", "is-warning"];
+    const alerts = ["is-danger", "is-primary", "is-warning"];
     alerts.forEach((alert) => {
         if (element.matches(`div.alert.${alert}`)) {
             functionDescription.push(element.textContent);
@@ -222,8 +236,7 @@ function parseFunctionDescription(element, functionDescription) {
     });
 }
 function parseParameters(element, parameters) {
-    if (element.matches('ul') &&
-        element.previousElementSibling?.matches(Heading.H4)) {
+    if (element.matches('ul') && element.previousElementSibling?.matches(Heading.H4)) {
         const isParameterList = element.previousElementSibling.textContent.includes('Parameters');
         if (isParameterList) {
             Array.from(element.querySelectorAll('li')).forEach(li => {
@@ -275,7 +288,10 @@ function parseConstants(starterHeading) {
                     constantDescription.push(element.textContent);
                 }
             });
-            constantArray.push({ name: constantName, description: constantDescription.join('\n').toString() });
+            constantArray.push({
+                name: constantName,
+                description: constantDescription.join('\n').toString()
+            });
         }
     });
     return constantArray;
@@ -335,7 +351,7 @@ function parseExamples() {
     });
     return exampleCodes;
 }
-// Utility functions
+// UTILITY FUNCTIONS
 function filterWords(text, options) {
     let filterRegex = new RegExp('\\b(' + options.wordsToFilter.join('|') + ')\\b', 'gi');
     return text.replace(filterRegex, '').trim();
